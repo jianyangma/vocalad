@@ -31,18 +31,6 @@ export class GeminiService {
             callbacks.onMessage({ type: 'opened' });
           },
           onmessage: (msg: any) => {
-            // LOG 1: See every raw message key
-            console.log("📩 Raw Message Keys:", Object.keys(msg));
-
-            // LOG 2: Deep inspect serverContent structure
-            if (msg.serverContent) {
-              console.log("🔍 serverContent keys:", Object.keys(msg.serverContent));
-              if (msg.serverContent.modelTurn) {
-                console.log("🔍 modelTurn keys:", Object.keys(msg.serverContent.modelTurn));
-                console.log("🔍 modelTurn.parts:", JSON.stringify(msg.serverContent.modelTurn.parts));
-              }
-            }
-
             // Check for audio data (matching golden copy's approach)
             const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData;
 
@@ -77,7 +65,7 @@ export class GeminiService {
           realtimeInputConfig: {
             automaticActivityDetection: { disabled: true }
           },
-          systemInstruction: "You are an IELTS speaking coach."
+          systemInstruction: "You are a speaking coach that will help and guide foreign language learners to improve their spoken English skills. I will speak to you in my target language and you will wait for me to finish and send you additional metrics data such as words per minute, pitch, etc. You will then provide Word Pronunciation Score, Sentence Pronunciation Score,Phoneme and Syllable level feedback,Fluency Score, Lexical stress, Intonation & fidelity detection,Pausing, pitch, speaking and articulation rate,Vocabulary, Grammar and Coherence scores. After providing feedback, suggest next steps for improvement and exercises to practice."
         },
       });
 

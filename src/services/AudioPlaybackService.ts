@@ -3,8 +3,9 @@ import { AudioContext, AudioManager } from 'react-native-audio-api';
 export class AudioPlaybackService {
   private audioContext: AudioContext;
   private outputNode: any;
-  private nextStartTime: number = 0;
-  private activeSources: Set<any> = new Set();
+  private audioQueue: Array<{ buffer: any; base64Data: string }> = [];
+  private isPlaying: boolean = false;
+  private currentSource: any = null;
 
   constructor() {
     try {
@@ -15,8 +16,8 @@ export class AudioPlaybackService {
         iosOptions: ["defaultToSpeaker", "allowBluetooth"],
       });
 
-      // Use 16kHz to match the recording sample rate
-      this.audioContext = new AudioContext({ sampleRate: 16000 });
+      // Use 24kHz for output (matching Gemini's output sample rate)
+      this.audioContext = new AudioContext({ sampleRate: 24000 });
 
       this.outputNode = this.audioContext.createGain();
       this.outputNode.connect(this.audioContext.destination);
@@ -27,9 +28,9 @@ export class AudioPlaybackService {
   }
 
   /**
-   * Decodes audio data using the golden copy's exact conversion logic
+   * Decodes audio data (base64 PCM → AudioBuffer)
    */
-  private async decodeAudioData(data: Uint8Array, sampleRate: number, numChannels: number): Promise<any> {
+  private decodeAudioData(data: Uint8Array, sampleRate: number, numChannels: number): any {
     const buffer = this.audioContext.createBuffer(
       numChannels,
       data.length / 2 / numChannels,
@@ -40,12 +41,12 @@ export class AudioPlaybackService {
     const l = dataInt16.length;
     const dataFloat32 = new Float32Array(l);
 
-    // Use golden copy's exact conversion: divide by 32768.0 (not asymmetric)
+    // Convert Int16 PCM to Float32 (range: -1.0 to 1.0)
     for (let i = 0; i < l; i++) {
       dataFloat32[i] = dataInt16[i] / 32768.0;
     }
 
-    // Handle mono audio (numChannels === 1)
+    // Copy to mono channel
     if (numChannels === 1) {
       buffer.copyToChannel(dataFloat32, 0);
     } else {
@@ -62,16 +63,16 @@ export class AudioPlaybackService {
   }
 
   /**
-   * Plays an audio chunk with seamless queueing
+   * Adds audio chunk to queue and starts playback loop if not already playing
    */
-  async playAudioChunk(base64Data: string) {
+  playAudioChunk(base64Data: string) {
     try {
       // Ensure AudioContext is running
       if (this.audioContext.state !== 'running') {
-        await this.audioContext.resume();
+        this.audioContext.resume();
       }
 
-      // Decode base64 to Uint8Array (matching golden copy)
+      // Decode base64 to Uint8Array
       const binaryString = atob(base64Data);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -79,67 +80,89 @@ export class AudioPlaybackService {
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // Decode to AudioBuffer using golden copy's logic
-      const audioBuffer = await this.decodeAudioData(bytes, 16000, 1);
+      // Decode to AudioBuffer (24kHz to match AudioContext sample rate)
+      const audioBuffer = this.decodeAudioData(bytes, 24000, 1);
 
-      // Calculate when to start this chunk
-      const currentTime = this.audioContext.currentTime;
+      // Add to queue
+      this.audioQueue.push({ buffer: audioBuffer, base64Data });
+      console.log(`📥 Queued: ${(audioBuffer.duration * 1000).toFixed(0)}ms (queue size: ${this.audioQueue.length})`);
 
-      // If this is the first chunk OR we're behind schedule, start immediately
-      if (this.nextStartTime === 0 || this.nextStartTime < currentTime) {
-        this.nextStartTime = currentTime;
+      // Start playback loop if not already running
+      if (!this.isPlaying) {
+        this.playbackLoop();
       }
 
-      // Create buffer source and schedule playback
+    } catch (error) {
+      console.error('❌ Error queueing audio chunk:', error);
+    }
+  }
+
+  /**
+   * Playback loop - plays chunks sequentially from the queue
+   * (Inspired by the Node.js Speaker example, adapted for Web Audio API)
+   */
+  private async playbackLoop() {
+    this.isPlaying = true;
+
+    while (this.audioQueue.length > 0) {
+      const item = this.audioQueue.shift();
+      if (!item) continue;
+
+      await this.playChunk(item.buffer);
+    }
+
+    this.isPlaying = false;
+    console.log('✅ Playback loop finished');
+  }
+
+  /**
+   * Plays a single chunk and waits for it to finish
+   */
+  private playChunk(audioBuffer: any): Promise<void> {
+    return new Promise((resolve) => {
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.outputNode);
 
-      // Track active source
-      this.activeSources.add(source);
+      this.currentSource = source;
 
-      // Clean up when done
       source.onEnded = () => {
-        this.activeSources.delete(source);
+        this.currentSource = null;
+        console.log(`🎵 Played: ${(audioBuffer.duration * 1000).toFixed(0)}ms`);
+        resolve();
       };
 
-      // Start playback at the queued time
-      source.start(this.nextStartTime);
-
-      // Update next start time to be immediately after this chunk
-      this.nextStartTime += audioBuffer.duration;
-
-      console.log(`🎵 Playing: ${(audioBuffer.duration * 1000).toFixed(0)}ms, queue: ${((this.nextStartTime - currentTime) * 1000).toFixed(0)}ms`);
-
-    } catch (error) {
-      console.error('❌ Error playing audio chunk:', error);
-    }
+      // Start immediately
+      source.start(0);
+    });
   }
 
   /**
    * Stops all active playback and clears the queue
    */
   async stop() {
-    // Stop all active sources
-    for (const source of this.activeSources.values()) {
+    // Clear the queue
+    this.audioQueue.length = 0;
+
+    // Stop current source if playing
+    if (this.currentSource) {
       try {
-        source.stop();
+        this.currentSource.stop();
       } catch (e) {
         // Ignore errors if already stopped
       }
+      this.currentSource = null;
     }
-    this.activeSources.clear();
 
-    // Reset timing
-    this.nextStartTime = 0;
-    console.log('🛑 Audio playback stopped');
+    this.isPlaying = false;
+    console.log('🛑 Audio playback stopped and queue cleared');
   }
 
   /**
    * Handles interruption (when user speaks while AI is responding)
    */
   handleInterruption() {
-    console.log('⚠️ Audio interrupted');
+    console.log('⚠️ Audio interrupted - clearing queue');
     this.stop();
   }
 }
