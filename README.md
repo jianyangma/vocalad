@@ -70,10 +70,10 @@ cd ios && pod install && cd ..
 
 ### 3. Environment Variables
 
-Create a `.env` file in the root:
+Update the API key in the `SpeeechCoach.ts` file:
 
 ```env
-GEMINI_API_KEY=your_key_here
+const GEMINI_API_KEY = "<API_KEY>"; // Replace with your actual API key
 
 ```
 
@@ -88,8 +88,8 @@ npx expo run:ios  # or run:android
 
 ## 📈 Roadmap
 
-- [ ] **Phase 1:** Native Audio Capture & PCM Streaming.
-- [ ] **Phase 2:** Integration with Gemini Live WebSocket.
+- [✅] **Phase 1:** Native Audio Capture & PCM Streaming.
+- [✅] **Phase 2:** Integration with Gemini Live WebSocket.
 - [ ] **Phase 3:** Local Pitch & Loudness Visualization.
 - [ ] **Phase 4:** On-device Phoneme Recognition with ONNX.
 - [ ] **Phase 5:** Final IELTS/CEFR Rubric Scoring Logic.

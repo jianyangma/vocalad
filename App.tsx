@@ -41,7 +41,7 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>Vocalad Test</Text>
+        <Text style={styles.title}>Vocalad</Text>
 
         <View style={styles.statusBox}>
           <Text style={styles.statusText}>{status}</Text>
