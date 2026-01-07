@@ -1,105 +1,89 @@
-import 'react-native-get-random-values'; 
+import 'react-native-get-random-values';
 import { GoogleGenAI, Modality } from '@google/genai';
 
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 export class GeminiService {
   private session: any;
-  private authClient: any; // Used only to generate the token
-  private liveClient: any; // The actual AI client used for the session
+  private client: GoogleGenAI;
 
   constructor(apiKey: string) {
-    // Initial client with your master key to provision tokens
-    this.authClient = new GoogleGenAI({ apiKey });
+    this.client = new GoogleGenAI({ apiKey });
   }
 
   /**
-   * 1. Generates a short-lived ephemeral token
-   */
-  private async getEphemeralToken() {
-    console.log("Generating Ephemeral Token...");
-    const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-    
-    const token = await this.authClient.authTokens.create({
-      config: {
-        uses: 1,
-        expireTime: expireTime,
-        liveConnectConstraints: {
-          model: MODEL_NAME,
-          config: {
-            sessionResumption: {},
-            temperature: 0.7,
-            responseModalities: [Modality.AUDIO]
-          }
-        },
-        httpOptions: {
-          apiVersion: 'v1alpha'
-        }
-      }
-    });
-
-    return token.name; // This is the "temporary API key"
-  }
-
-  /**
-   * 2. Connects to Gemini Live using the Ephemeral Token
+   * Connects to Gemini Live
    */
   async connect(callbacks: { onMessage: (msg: any) => void; onError: (err: any) => void }) {
-  try {
-    const ephemeralKey = await this.getEphemeralToken();
-    
-    this.liveClient = new GoogleGenAI({ 
-        apiKey: ephemeralKey,
-        httpOptions: { apiVersion: 'v1alpha' } 
-    });
-
-    // We store the session in a local variable first
-    const activeSession = await this.liveClient.live.connect({
-      model: MODEL_NAME,
-      config: {
-        responseModalities: [Modality.AUDIO],
-        realtimeInputConfig: {
-          automaticActivityDetection: { disabled: true }
-        },
-        systemInstruction: "You are an IELTS speaking coach."
-      },
-      callbacks: {
-        onmessage: callbacks.onMessage,
-        onerror: callbacks.onError,
-        onopen: () => {
-          console.log("Socket opened. Finalizing handshake...");
-          // Use a tiny delay to ensure the 'activeSession' assignment is complete
-          setTimeout(() => {
-            if (activeSession) {
-              console.log("Session Handshake Complete - Sending Start Signal");
-              activeSession.sendRealtimeInput({ activityStart: {} });
+    try {
+      this.session = await this.client.live.connect({
+        model: MODEL_NAME,
+        callbacks: {
+          onopen: () => {
+            console.log('✅ Gemini Live session opened - Sending activityStart');
+            // Send activityStart immediately after connection
+            if (this.session) {
+              this.session.sendRealtimeInput({ activityStart: {} });
             }
-          }, 10); 
-        }
-      }
-    });
+            callbacks.onMessage({ type: 'opened' });
+          },
+          onmessage: (msg: any) => {
+            // LOG 1: See every raw message key
+            console.log("📩 Raw Message Keys:", Object.keys(msg));
 
-    this.session = activeSession;
+            // LOG 2: Check for Model Activity (Transcription)
+            if (msg.serverContent?.modelTurn?.parts) {
+              console.log("✨ AI is preparing a turn...");
+            }
 
-  } catch (error) {
-    callbacks.onError(error);
-  }
-}
+            // LOG 3: Check for specific Audio Data
+            const audioPart = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData);
+            if (audioPart) {
+              console.log("🔊 AUDIO RECEIVED! Bytes:", audioPart.inlineData.data.length);
+            }
 
-  sendAudioChunk(base64Data: string) {
-if (this.session && typeof this.session.sendRealtimeInput === 'function') {
-    this.session.sendRealtimeInput({
-        audio: {
-          data: base64Data,
-          mimeType: "audio/pcm;rate=16000"
-        }
+            callbacks.onMessage(msg);
+          },
+          onerror: (e: ErrorEvent) => {
+            console.error('❌ Gemini Live error:', e.message);
+            callbacks.onError(e);
+          },
+          onclose: (e: CloseEvent) => {
+            console.log('🔌 Gemini Live session closed:', e.reason);
+          },
+        },
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Orus' } },
+          },
+          realtimeInputConfig: {
+            automaticActivityDetection: { disabled: true }
+          },
+          systemInstruction: "You are an IELTS speaking coach."
+        },
       });
+
+      console.log('Session initialized successfully');
+    } catch (error) {
+      console.error('Failed to connect to Gemini:', error);
+      callbacks.onError(error);
+    }
+  }
+
+  sendAudioChunk(pcmBlob: any) {
+    if (this.session) {
+      this.session.sendRealtimeInput({ media: pcmBlob });
     }
   }
 
   async completeTurn(metrics: any) {
     if (!this.session) return;
+
+    // 1. Signal end of activity
     this.session.sendRealtimeInput({ activityEnd: {} });
+
+    // 2. Inject local metrics as hidden context
     this.session.sendClientContent({
       turns: [{
         role: 'user',
@@ -107,7 +91,12 @@ if (this.session && typeof this.session.sendRealtimeInput === 'function') {
       }],
       turnComplete: true
     });
-    this.session.sendRealtimeInput({ activityStart: {} });
+
+    console.log("Turn signaled as complete. Waiting for Gemini response...");
+
+    // 3. Start next turn automatically
+    // Commented out for now - you can decide when to restart
+    // this.session.sendRealtimeInput({ activityStart: {} });
   }
 
   stop() {

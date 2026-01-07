@@ -42,22 +42,22 @@ export default function App() {
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Vocalad Test</Text>
-        
+
         <View style={styles.statusBox}>
           <Text style={styles.statusText}>{status}</Text>
           {isRecording && (
-            <View 
+            <View
               style={[
-                styles.meter, 
+                styles.meter,
                 { height: Math.max(10, audioLevel * 300) } // Increased scale for visibility
-              ]} 
+              ]}
             />
           )}
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[styles.button, isRecording ? styles.stopBtn : styles.startBtn]} 
+          <TouchableOpacity
+            style={[styles.button, isRecording ? styles.stopBtn : styles.startBtn]}
             onPress={handleToggle}
           >
             <Text style={styles.btnText}>

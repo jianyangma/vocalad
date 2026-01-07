@@ -11,15 +11,15 @@ export function useSpeechCoach() {
   const geminiService = useRef(new GeminiService(GEMINI_API_KEY));
 
   const startSession = useCallback(async () => {
-    // 1. Connect to Gemini & Send activityStart
+    // 1. Connect to Gemini
     await geminiService.current.connect({
       onMessage: (msg) => console.log("AI says:", msg),
       onError: (err) => console.error("Socket Error:", err)
     });
 
-    // 2. Start the Mic Faucet
+    // 2. Start the Mic
     await audioService.current.start(
-      (base64) => geminiService.current.sendAudioChunk(base64),
+      (pcmBlob) => geminiService.current.sendAudioChunk(pcmBlob),
       (pcmBuffer) => {
         // Calculate a simple Root Mean Square (RMS) for volume visualization
         let sum = 0;
@@ -35,17 +35,20 @@ export function useSpeechCoach() {
   }, []);
 
   const endTurn = useCallback(async () => {
-    // 3. Close the turn and trigger AI response
-    const mockMetrics = { wpm: 120, pitch: "steady" }; // Phase 2 logic goes here
+    // Collect local metrics (placeholder for now - will be real metrics later)
+    const mockMetrics = { wpm: 120, pitch: "steady" };
+
+    // Send activityEnd + metrics to trigger AI response
     await geminiService.current.completeTurn(mockMetrics);
-    
-    // We keep recording active for the next turn
+
+    // Note: We keep recording active for the next turn
   }, []);
 
   const stopAll = useCallback(() => {
     audioService.current.stop();
+    geminiService.current.stop();
     setIsRecording(false);
   }, []);
 
-  return { startSession, endTurn, stopAll, isRecording };
+  return { startSession, endTurn, stopAll, isRecording, audioLevel };
 }

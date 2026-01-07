@@ -13,7 +13,7 @@ export class AudioService {
     });
   }
 
-  async start(onData: (base64: string) => void, onLocalBuffer: (pcm: Float32Array) => void) {
+  async start(onData: (blob: any) => void, onLocalBuffer: (pcm: Float32Array) => void) {
       // 1. Request Microphone Permissions
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') throw new Error("Permission denied");
@@ -32,7 +32,7 @@ export class AudioService {
         iosMode: "voiceChat",
         iosOptions: ["defaultToSpeaker", "allowBluetooth"],
       });
-    
+
     // This is our "T-Junction" callback
     this.recorder?.onAudioReady((event) => {
       // event.buffer is an AudioBuffer
@@ -42,21 +42,30 @@ export class AudioService {
       onLocalBuffer(float32Data);
 
       // TRACK B: Cloud (Gemini)
-      // Gemini expects 16-bit PCM (Int16), so we convert it
-      const pcm16Base64 = this.float32ToPcm16Base64(float32Data);
-      onData(pcm16Base64);
+      // Create a blob
+      const pcmBlob = this.createBlob(float32Data);
+      onData(pcmBlob);
     });
 
     await this.recorder?.start();
   }
 
-  private float32ToPcm16Base64(float32Array: Float32Array): string {
-    const pcm16 = new Int16Array(float32Array.length);
-    for (let i = 0; i < float32Array.length; i++) {
-      const s = Math.max(-1, Math.min(1, float32Array[i]));
+  // Creates a blob from Float32Array PCM data
+  private createBlob(pcmData: Float32Array) {
+    // Convert Float32 to Int16 PCM
+    const pcm16 = new Int16Array(pcmData.length);
+    for (let i = 0; i < pcmData.length; i++) {
+      const s = Math.max(-1, Math.min(1, pcmData[i]));
       pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
-    return Buffer.from(pcm16.buffer).toString('base64');
+
+    // Convert to base64 and create blob-like object
+    const base64Data = Buffer.from(pcm16.buffer).toString('base64');
+
+    return {
+      data: base64Data,
+      mimeType: 'audio/pcm;rate=16000'
+    };
   }
 
   stop() {
