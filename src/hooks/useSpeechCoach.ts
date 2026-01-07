@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { AudioService } from '../services/AudioService';
 import { GeminiService } from '../services/GeminiService';
 
-const GEMINI_API_KEY = "REPLACE_WITH_YOUR_GEMINI_API_KEY"; // Replace with your actual API key
+const GEMINI_API_KEY = "<API_KEY>"; // Replace with your actual API key
 
 export function useSpeechCoach() {
   const [isRecording, setIsRecording] = useState(false);
@@ -44,9 +44,9 @@ export function useSpeechCoach() {
     // Note: We keep recording active for the next turn
   }, []);
 
-  const stopAll = useCallback(() => {
+  const stopAll = useCallback(async () => {
     audioService.current.stop();
-    geminiService.current.stop();
+    await geminiService.current.stop();
     setIsRecording(false);
   }, []);
 

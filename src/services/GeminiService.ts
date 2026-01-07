@@ -1,14 +1,17 @@
 import 'react-native-get-random-values';
 import { GoogleGenAI, Modality } from '@google/genai';
+import { AudioPlaybackService } from './AudioPlaybackService';
 
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 export class GeminiService {
   private session: any;
   private client: GoogleGenAI;
+  private playbackService: AudioPlaybackService;
 
   constructor(apiKey: string) {
     this.client = new GoogleGenAI({ apiKey });
+    this.playbackService = new AudioPlaybackService();
   }
 
   /**
@@ -31,15 +34,29 @@ export class GeminiService {
             // LOG 1: See every raw message key
             console.log("📩 Raw Message Keys:", Object.keys(msg));
 
-            // LOG 2: Check for Model Activity (Transcription)
-            if (msg.serverContent?.modelTurn?.parts) {
-              console.log("✨ AI is preparing a turn...");
+            // LOG 2: Deep inspect serverContent structure
+            if (msg.serverContent) {
+              console.log("🔍 serverContent keys:", Object.keys(msg.serverContent));
+              if (msg.serverContent.modelTurn) {
+                console.log("🔍 modelTurn keys:", Object.keys(msg.serverContent.modelTurn));
+                console.log("🔍 modelTurn.parts:", JSON.stringify(msg.serverContent.modelTurn.parts));
+              }
             }
 
-            // LOG 3: Check for specific Audio Data
-            const audioPart = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.inlineData);
-            if (audioPart) {
-              console.log("🔊 AUDIO RECEIVED! Bytes:", audioPart.inlineData.data.length);
+            // Check for audio data (matching golden copy's approach)
+            const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData;
+
+            if (audio) {
+              console.log("🔊 AUDIO RECEIVED! Bytes:", audio.data.length);
+              // Play the audio chunk (don't await - let it play asynchronously)
+              this.playbackService.playAudioChunk(audio.data);
+            }
+
+            // Handle interruption (when user speaks while AI is responding)
+            const interrupted = msg.serverContent?.interrupted;
+            if (interrupted) {
+              console.log("⚠️ Interrupted - stopping playback");
+              this.playbackService.handleInterruption();
             }
 
             callbacks.onMessage(msg);
@@ -99,7 +116,8 @@ export class GeminiService {
     // this.session.sendRealtimeInput({ activityStart: {} });
   }
 
-  stop() {
+  async stop() {
+    await this.playbackService.stop();
     this.session?.close();
   }
 }
