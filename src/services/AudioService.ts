@@ -1,4 +1,5 @@
-import { AudioRecorder, AudioBuffer } from 'react-native-audio-api';
+import { AudioRecorder, AudioManager } from 'react-native-audio-api';
+import { Audio } from 'expo-av';
 import { Buffer } from 'buffer';
 
 export class AudioService {
@@ -13,6 +14,25 @@ export class AudioService {
   }
 
   async start(onData: (base64: string) => void, onLocalBuffer: (pcm: Float32Array) => void) {
+      // 1. Request Microphone Permissions
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') throw new Error("Permission denied");
+
+      // 2. Set the iOS Audio Category manually using expo-av
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+      });
+
+      // 3. Configure the native AudioManager (if needed for sample rate)
+      // Note: setAudioSessionCategory is the method in this library
+      AudioManager.setAudioSessionOptions({
+        iosCategory: "playAndRecord",
+        iosMode: "voiceChat",
+        iosOptions: ["defaultToSpeaker", "allowBluetooth"],
+      });
+    
     // This is our "T-Junction" callback
     this.recorder?.onAudioReady((event) => {
       // event.buffer is an AudioBuffer
