@@ -8,6 +8,7 @@ export class GeminiService {
   private session: any;
   private client: GoogleGenAI;
   private playbackService: AudioPlaybackService;
+  private shouldRestartAfterTurn: boolean = false;
 
   constructor(apiKey: string) {
     this.client = new GoogleGenAI({ apiKey });
@@ -45,6 +46,18 @@ export class GeminiService {
             if (interrupted) {
               console.log("⚠️ Interrupted - stopping playback");
               this.playbackService.handleInterruption();
+            }
+
+            // Check if turn is complete - this means AI finished responding
+            const turnComplete = msg.serverContent?.turnComplete;
+            if (turnComplete && this.shouldRestartAfterTurn) {
+              console.log("✅ Turn complete - starting next turn");
+              this.shouldRestartAfterTurn = false;
+              // Start listening for next turn
+              if (this.session) {
+                this.session.sendRealtimeInput({ activityStart: {} });
+                console.log("🎙️ Started listening for next turn");
+              }
             }
 
             callbacks.onMessage(msg);
@@ -99,9 +112,9 @@ export class GeminiService {
 
     console.log("Turn signaled as complete. Waiting for Gemini response...");
 
-    // 3. Start next turn automatically
-    // Commented out for now - you can decide when to restart
-    // this.session.sendRealtimeInput({ activityStart: {} });
+    // 3. Set flag to restart after AI responds
+    // The onmessage handler will detect turnComplete and restart automatically
+    this.shouldRestartAfterTurn = true;
   }
 
   async stop() {

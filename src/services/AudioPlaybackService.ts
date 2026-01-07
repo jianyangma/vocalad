@@ -3,9 +3,8 @@ import { AudioContext, AudioManager } from 'react-native-audio-api';
 export class AudioPlaybackService {
   private audioContext: AudioContext;
   private outputNode: any;
-  private audioQueue: Array<{ buffer: any; base64Data: string }> = [];
-  private isPlaying: boolean = false;
-  private currentSource: any = null;
+  private nextStartTime: number = 0;
+  private activeSources: Set<any> = new Set();
 
   constructor() {
     try {
@@ -63,7 +62,8 @@ export class AudioPlaybackService {
   }
 
   /**
-   * Adds audio chunk to queue and starts playback loop if not already playing
+   * Plays audio chunk with seamless time-based scheduling
+   * This eliminates gaps between chunks by scheduling them precisely
    */
   playAudioChunk(base64Data: string) {
     try {
@@ -83,86 +83,69 @@ export class AudioPlaybackService {
       // Decode to AudioBuffer (24kHz to match AudioContext sample rate)
       const audioBuffer = this.decodeAudioData(bytes, 24000, 1);
 
-      // Add to queue
-      this.audioQueue.push({ buffer: audioBuffer, base64Data });
-      console.log(`📥 Queued: ${(audioBuffer.duration * 1000).toFixed(0)}ms (queue size: ${this.audioQueue.length})`);
+      // Calculate when to start this chunk
+      const currentTime = this.audioContext.currentTime;
 
-      // Start playback loop if not already running
-      if (!this.isPlaying) {
-        this.playbackLoop();
+      // Initialize timing on first chunk or if we've fallen behind
+      if (this.nextStartTime === 0 || this.nextStartTime < currentTime) {
+        // Start with minimal delay (50ms buffer for stability)
+        this.nextStartTime = currentTime + 0.05;
       }
 
-    } catch (error) {
-      console.error('❌ Error queueing audio chunk:', error);
-    }
-  }
+      // Note: We don't cap the queue depth. Chunks arrive in bursts faster than real-time,
+      // and capping creates out-of-order playback. Let the queue build naturally.
 
-  /**
-   * Playback loop - plays chunks sequentially from the queue
-   * (Inspired by the Node.js Speaker example, adapted for Web Audio API)
-   */
-  private async playbackLoop() {
-    this.isPlaying = true;
-
-    while (this.audioQueue.length > 0) {
-      const item = this.audioQueue.shift();
-      if (!item) continue;
-
-      await this.playChunk(item.buffer);
-    }
-
-    this.isPlaying = false;
-    console.log('✅ Playback loop finished');
-  }
-
-  /**
-   * Plays a single chunk and waits for it to finish
-   */
-  private playChunk(audioBuffer: any): Promise<void> {
-    return new Promise((resolve) => {
+      // Create buffer source and schedule playback
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.outputNode);
 
-      this.currentSource = source;
+      // Track active source
+      this.activeSources.add(source);
 
+      // Clean up when done
       source.onEnded = () => {
-        this.currentSource = null;
-        console.log(`🎵 Played: ${(audioBuffer.duration * 1000).toFixed(0)}ms`);
-        resolve();
+        this.activeSources.delete(source);
       };
 
-      // Start immediately
-      source.start(0);
-    });
+      // Start playback at the scheduled time (seamless queueing)
+      source.start(this.nextStartTime);
+
+      // Schedule next chunk to start exactly when this one ends (no gaps!)
+      this.nextStartTime += audioBuffer.duration;
+
+      const queueDepth = this.nextStartTime - currentTime;
+      console.log(`🎵 Scheduled: ${(audioBuffer.duration * 1000).toFixed(0)}ms @ ${this.nextStartTime.toFixed(3)}s (queue: ${(queueDepth * 1000).toFixed(0)}ms)`);
+
+    } catch (error) {
+      console.error('❌ Error playing audio chunk:', error);
+    }
   }
 
   /**
    * Stops all active playback and clears the queue
    */
   async stop() {
-    // Clear the queue
-    this.audioQueue.length = 0;
-
-    // Stop current source if playing
-    if (this.currentSource) {
+    // Stop all active sources
+    for (const source of this.activeSources.values()) {
       try {
-        this.currentSource.stop();
+        source.stop();
       } catch (e) {
         // Ignore errors if already stopped
       }
-      this.currentSource = null;
     }
+    this.activeSources.clear();
 
-    this.isPlaying = false;
-    console.log('🛑 Audio playback stopped and queue cleared');
+    // Reset timing
+    this.nextStartTime = 0;
+    console.log('🛑 Audio playback stopped');
   }
 
   /**
    * Handles interruption (when user speaks while AI is responding)
    */
   handleInterruption() {
-    console.log('⚠️ Audio interrupted - clearing queue');
+    console.log('⚠️ Audio interrupted');
     this.stop();
   }
 }
