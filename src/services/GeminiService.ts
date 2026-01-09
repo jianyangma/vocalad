@@ -1,18 +1,18 @@
 import 'react-native-get-random-values';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { AudioPlaybackService } from './AudioPlaybackService';
+import { NativeAudioPlaybackService } from './NativeAudioPlaybackService';
 
 const MODEL_NAME = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 export class GeminiService {
   private session: any;
   private client: GoogleGenAI;
-  private playbackService: AudioPlaybackService;
+  private playbackService: NativeAudioPlaybackService;
   private shouldRestartAfterTurn: boolean = false;
 
   constructor(apiKey: string) {
     this.client = new GoogleGenAI({ apiKey });
-    this.playbackService = new AudioPlaybackService();
+    this.playbackService = new NativeAudioPlaybackService();
   }
 
   /**
@@ -20,15 +20,15 @@ export class GeminiService {
    */
   async connect(callbacks: { onMessage: (msg: any) => void; onError: (err: any) => void }) {
     try {
+      // Initialize native audio player immediately at session start
+      console.log("🎵 Initializing native audio player (24kHz, mono)");
+      await this.playbackService.initialize(24000, 1);
+
       this.session = await this.client.live.connect({
         model: MODEL_NAME,
         callbacks: {
           onopen: () => {
-            console.log('✅ Gemini Live session opened - Sending activityStart');
-            // Send activityStart immediately after connection
-            if (this.session) {
-              this.session.sendRealtimeInput({ activityStart: {} });
-            }
+            console.log('✅ Gemini Live session opened');
             callbacks.onMessage({ type: 'opened' });
           },
           onmessage: (msg: any) => {
@@ -36,7 +36,6 @@ export class GeminiService {
             const audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData;
 
             if (audio) {
-              console.log("🔊 AUDIO RECEIVED! Bytes:", audio.data.length);
               // Play the audio chunk (don't await - let it play asynchronously)
               this.playbackService.playAudioChunk(audio.data);
             }
@@ -89,9 +88,26 @@ export class GeminiService {
     }
   }
 
+  private chunkCount = 0;
+
+  startActivity() {
+    if (this.session) {
+      console.log('🎙️ [GeminiService] Sending activityStart - beginning user turn');
+      this.session.sendRealtimeInput({ activityStart: {} });
+    } else {
+      console.error('❌ [GeminiService] Cannot start activity - no active session');
+    }
+  }
+
   sendAudioChunk(pcmBlob: any) {
     if (this.session) {
+      this.chunkCount++;
+      if (this.chunkCount === 1) {
+        console.log(`📤 [GeminiService] Started sending audio to Gemini`);
+      }
       this.session.sendRealtimeInput({ media: pcmBlob });
+    } else {
+      console.error('❌ [GeminiService] Cannot send audio chunk - no active session');
     }
   }
 

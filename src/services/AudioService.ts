@@ -14,40 +14,90 @@ export class AudioService {
   }
 
   async start(onData: (blob: any) => void, onLocalBuffer: (pcm: Float32Array) => void) {
+    try {
+      console.log('🎤 [AudioService] Starting audio capture...');
+
+      if (!this.recorder) {
+        throw new Error('Recorder not initialized');
+      }
+
       // 1. Request Microphone Permissions
+      console.log('🎤 [AudioService] Requesting microphone permissions...');
       const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') throw new Error("Permission denied");
+      if (status !== 'granted') {
+        console.error('❌ [AudioService] Microphone permission denied');
+        throw new Error("Permission denied");
+      }
+      console.log('✅ [AudioService] Microphone permission granted');
 
       // 2. Set the iOS Audio Category manually using expo-av
+      console.log('🎤 [AudioService] Setting audio mode...');
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
       });
+      console.log('✅ [AudioService] Audio mode set');
 
       // 3. Configure the native AudioManager (if needed for sample rate)
-      // Note: setAudioSessionCategory is the method in this library
+      console.log('🎤 [AudioService] Configuring AudioManager...');
       AudioManager.setAudioSessionOptions({
         iosCategory: "playAndRecord",
         iosMode: "voiceChat",
         iosOptions: ["defaultToSpeaker", "allowBluetooth"],
       });
+      console.log('✅ [AudioService] AudioManager configured');
 
-    // This is our "T-Junction" callback
-    this.recorder?.onAudioReady((event) => {
-      // event.buffer is an AudioBuffer
-      const float32Data = event.buffer.getChannelData(0);
+      // Small delay to let audio session stabilize (helps with iOS simulator issues)
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // TRACK A: Local Analysis (Pass the Float32Array directly)
-      onLocalBuffer(float32Data);
+      // Track number of audio buffers received
+      let bufferCount = 0;
 
-      // TRACK B: Cloud (Gemini)
-      // Create a blob
-      const pcmBlob = this.createBlob(float32Data);
-      onData(pcmBlob);
-    });
+      // This is our "T-Junction" callback - set up BEFORE starting
+      this.recorder.onAudioReady((event) => {
+        bufferCount++;
 
-    await this.recorder?.start();
+        // event.buffer is an AudioBuffer
+        const float32Data = event.buffer.getChannelData(0);
+
+        if (bufferCount === 1) {
+          console.log(`🎤 [AudioService] Audio streaming started (${float32Data.length} samples per buffer)`);
+        }
+
+        // TRACK A: Local Analysis (Pass the Float32Array directly)
+        try {
+          onLocalBuffer(float32Data);
+        } catch (error) {
+          console.error('❌ [AudioService] Error in onLocalBuffer:', error);
+        }
+
+        // TRACK B: Cloud (Gemini)
+        // Create a blob
+        try {
+          const pcmBlob = this.createBlob(float32Data);
+          onData(pcmBlob);
+        } catch (error) {
+          console.error('❌ [AudioService] Error sending to Gemini:', error);
+        }
+      });
+
+      console.log('🎤 [AudioService] Starting recorder...');
+      this.recorder.start();
+      console.log('✅ [AudioService] Recorder started - listening for audio buffers...');
+
+      // Wait a moment and check if we're getting buffers
+      setTimeout(() => {
+        if (bufferCount === 0) {
+          console.warn('⚠️ [AudioService] No audio buffers received after 2 seconds!');
+          console.warn('⚠️ [AudioService] This may indicate an iOS Simulator audio issue.');
+          console.warn('⚠️ [AudioService] Try testing on a real iOS device.');
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('❌ [AudioService] Failed to start recording:', error);
+      throw error;
+    }
   }
 
   // Creates a blob from Float32Array PCM data
@@ -69,7 +119,7 @@ export class AudioService {
   }
 
   stop() {
+    console.log('🛑 [AudioService] Stopping audio capture');
     this.recorder?.stop();
-    console.log("Recorder Stopped");
   }
 }

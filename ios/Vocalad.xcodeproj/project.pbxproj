@@ -10,6 +10,8 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		35E5F91085B683563A8EBE52 /* libPods-Vocalad.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1722D23FCECE87DC41121585 /* libPods-Vocalad.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		875835E92F10B1CF003B1E23 /* AudioStreamPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875835E82F10B1CF003B1E23 /* AudioStreamPlayer.swift */; };
+		875835EA2F10B1CF003B1E23 /* AudioStreamPlayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 875835E72F10B1CF003B1E23 /* AudioStreamPlayer.m */; };
 		A9B552350CB23F9F269BDC6C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5063AE9013F5FBB5C2B9B631 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		BE0812685D2DFF72195CD054 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D1547476B359B423927BBD /* ExpoModulesProvider.swift */; };
@@ -22,7 +24,9 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Vocalad/Info.plist; sourceTree = "<group>"; };
 		1722D23FCECE87DC41121585 /* libPods-Vocalad.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Vocalad.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		45D1547476B359B423927BBD /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Vocalad/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		5063AE9013F5FBB5C2B9B631 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Vocalad/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		5063AE9013F5FBB5C2B9B631 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Vocalad/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		875835E72F10B1CF003B1E23 /* AudioStreamPlayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AudioStreamPlayer.m; sourceTree = "<group>"; };
+		875835E82F10B1CF003B1E23 /* AudioStreamPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamPlayer.swift; sourceTree = "<group>"; };
 		88EB57BB8A88263D7E590939 /* Pods-Vocalad.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Vocalad.release.xcconfig"; path = "Target Support Files/Pods-Vocalad/Pods-Vocalad.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Vocalad/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
@@ -47,6 +51,8 @@
 		13B07FAE1A68108700A75B9A /* Vocalad */ = {
 			isa = PBXGroup;
 			children = (
+				875835E72F10B1CF003B1E23 /* AudioStreamPlayer.m */,
+				875835E82F10B1CF003B1E23 /* AudioStreamPlayer.swift */,
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* Vocalad-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
@@ -128,7 +134,6 @@
 				EEF357CB0D7730E39B9B1E18 /* Pods-Vocalad.debug.xcconfig */,
 				88EB57BB8A88263D7E590939 /* Pods-Vocalad.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -335,6 +340,8 @@
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				BE0812685D2DFF72195CD054 /* ExpoModulesProvider.swift in Sources */,
+				875835E92F10B1CF003B1E23 /* AudioStreamPlayer.swift in Sources */,
+				875835EA2F10B1CF003B1E23 /* AudioStreamPlayer.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
