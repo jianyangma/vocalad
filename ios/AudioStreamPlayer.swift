@@ -10,6 +10,36 @@ class AudioStreamPlayer: NSObject {
 
   override init() {
     super.init()
+
+    // Listen for audio interruptions
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleInterruption),
+      name: AVAudioSession.interruptionNotification,
+      object: nil
+    )
+  }
+
+  @objc
+  private func handleInterruption(notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+      return
+    }
+
+    if type == .ended {
+      // Interruption ended, restart audio engine
+      if let engine = audioEngine, !engine.isRunning {
+        do {
+          try engine.start()
+          playerNode?.play()
+          isPlaying = true
+        } catch {
+          print("❌ Failed to recover from interruption: \(error)")
+        }
+      }
+    }
   }
 
   @objc
@@ -17,10 +47,20 @@ class AudioStreamPlayer: NSObject {
     let rate = sampleRate.doubleValue
     let channelCount = channels.uint32Value
 
+    // Configure audio session for playback AND recording
+    let audioSession = AVAudioSession.sharedInstance()
+    do {
+      try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
+      try audioSession.setActive(true)
+    } catch {
+      print("❌ Failed to configure audio session: \(error)")
+    }
+
     audioEngine = AVAudioEngine()
     playerNode = AVAudioPlayerNode()
 
     guard let engine = audioEngine, let player = playerNode else {
+      print("❌ Failed to create audio engine or player node")
       return
     }
 
@@ -33,6 +73,7 @@ class AudioStreamPlayer: NSObject {
     )
 
     guard let format = audioFormat else {
+      print("❌ Failed to create audio format")
       return
     }
 
@@ -53,9 +94,26 @@ class AudioStreamPlayer: NSObject {
   @objc
   func writeBuffer(_ base64Data: String) {
     guard let player = playerNode,
-          let format = audioFormat,
-          isPlaying else {
+          let engine = audioEngine,
+          let format = audioFormat else {
+      print("❌ Cannot write buffer: player=\(playerNode != nil), format=\(audioFormat != nil)")
       return
+    }
+
+    // Ensure audio engine is running
+    if !engine.isRunning {
+      do {
+        try engine.start()
+      } catch {
+        print("❌ Failed to restart audio engine: \(error)")
+        return
+      }
+    }
+
+    // Ensure player is playing (restart if needed)
+    if !player.isPlaying {
+      player.play()
+      isPlaying = true
     }
 
     // Decode base64 to Data

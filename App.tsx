@@ -16,6 +16,7 @@ import { StyleSheet, Text, View, TouchableOpacity, StatusBar } from 'react-nativ
 // Use the modern, cross-platform Safe Area library
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSpeechCoach } from './src/hooks/useSpeechCoach';
+import { VoiceOrb3D } from './src/components/VoiceOrb3D';
 
 export default function App() {
   const { startSession, endTurn, stopAll, isRecording, audioLevel, isAISpeaking } = useSpeechCoach();
@@ -45,16 +46,13 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Vocalad</Text>
 
-        <View style={styles.statusBox}>
+        <View style={styles.orbContainer}>
+          <VoiceOrb3D
+            audioLevel={audioLevel}
+            isActive={isRecording}
+            isAISpeaking={isAISpeaking}
+          />
           <Text style={styles.statusText}>{displayStatus}</Text>
-          {isRecording && !isAISpeaking && (
-            <View
-              style={[
-                styles.meter,
-                { height: Math.max(10, audioLevel * 300) }
-              ]}
-            />
-          )}
         </View>
 
         <View style={styles.buttonContainer}>
@@ -91,31 +89,16 @@ const styles = StyleSheet.create({
     fontSize: 28, 
     fontWeight: 'bold' 
   },
-  statusBox: { 
-    height: 300, 
-    width: '85%', 
-    backgroundColor: '#1E1E1E', 
-    borderRadius: 30, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#333'
+  orbContainer: {
+    height: 400,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  statusText: { 
-    color: '#888', 
+  statusText: {
+    color: '#888',
     fontSize: 16,
-    position: 'absolute',
-    top: 20
-  },
-  meter: { 
-    width: 80, 
-    backgroundColor: '#00D0FF', 
-    borderRadius: 10,
-    shadowColor: '#00D0FF',
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 5
+    marginTop: 20
   },
   buttonContainer: { 
     width: '100%', 
