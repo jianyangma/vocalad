@@ -45,7 +45,6 @@ class AudioStreamPlayer: NSObject {
       try engine.start()
       player.play()
       isPlaying = true
-      print("✅ AudioStreamPlayer initialized: \(rate)Hz, \(channelCount) channels")
     } catch {
       print("❌ Failed to start audio engine: \(error)")
     }
@@ -104,7 +103,6 @@ class AudioStreamPlayer: NSObject {
     playerNode?.stop()
     audioEngine?.stop()
     isPlaying = false
-    print("🛑 AudioStreamPlayer stopped")
   }
 
   @objc

@@ -54,7 +54,6 @@ class AudioStreamPlayerModule(reactContext: ReactApplicationContext) :
 
         audioTrack?.play()
         isPlaying = true
-        println("✅ AudioStreamPlayer initialized: ${sampleRate}Hz, $channels channels")
     }
 
     @ReactMethod
@@ -80,6 +79,5 @@ class AudioStreamPlayerModule(reactContext: ReactApplicationContext) :
         audioTrack?.release()
         audioTrack = null
         isPlaying = false
-        println("🛑 AudioStreamPlayer stopped")
     }
 }

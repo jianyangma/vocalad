@@ -18,7 +18,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useSpeechCoach } from './src/hooks/useSpeechCoach';
 
 export default function App() {
-  const { startSession, endTurn, stopAll, isRecording, audioLevel } = useSpeechCoach();
+  const { startSession, endTurn, stopAll, isRecording, audioLevel, isAISpeaking } = useSpeechCoach();
   const [status, setStatus] = useState('Idle');
 
   const handleToggle = async () => {
@@ -37,6 +37,8 @@ export default function App() {
     }
   };
 
+  const displayStatus = isAISpeaking ? 'Gemini Speaking...' : status;
+
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" />
@@ -44,12 +46,12 @@ export default function App() {
         <Text style={styles.title}>Vocalad</Text>
 
         <View style={styles.statusBox}>
-          <Text style={styles.statusText}>{status}</Text>
-          {isRecording && (
+          <Text style={styles.statusText}>{displayStatus}</Text>
+          {isRecording && !isAISpeaking && (
             <View
               style={[
                 styles.meter,
-                { height: Math.max(10, audioLevel * 300) } // Increased scale for visibility
+                { height: Math.max(10, audioLevel * 300) }
               ]}
             />
           )}
@@ -61,7 +63,7 @@ export default function App() {
             onPress={handleToggle}
           >
             <Text style={styles.btnText}>
-              {isRecording ? 'Stop Session' : 'Start Coaching'}
+              {isRecording ? 'Stop Session' : 'Speak to Gemini'}
             </Text>
           </TouchableOpacity>
 

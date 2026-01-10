@@ -115,7 +115,6 @@ export class AudioPlaybackService {
       this.nextStartTime += audioBuffer.duration;
 
       const queueDepth = this.nextStartTime - currentTime;
-      console.log(`🎵 Scheduled: ${(audioBuffer.duration * 1000).toFixed(0)}ms @ ${this.nextStartTime.toFixed(3)}s (queue: ${(queueDepth * 1000).toFixed(0)}ms)`);
 
     } catch (error) {
       console.error('❌ Error playing audio chunk:', error);
@@ -138,14 +137,12 @@ export class AudioPlaybackService {
 
     // Reset timing
     this.nextStartTime = 0;
-    console.log('🛑 Audio playback stopped');
   }
 
   /**
    * Handles interruption (when user speaks while AI is responding)
    */
   handleInterruption() {
-    console.log('⚠️ Audio interrupted');
     this.stop();
   }
 }

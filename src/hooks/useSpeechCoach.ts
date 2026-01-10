@@ -7,6 +7,7 @@ const GEMINI_API_KEY = "<API_KEY>"; // Replace with your actual API key
 export function useSpeechCoach() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
 
   // Use useMemo to ensure services are only created once
   const audioService = useMemo(() => new AudioService(), []);
@@ -16,7 +17,8 @@ export function useSpeechCoach() {
     // 1. Connect to Gemini
     await geminiService.connect({
       onMessage: () => {},
-      onError: (err: any) => console.error("Socket Error:", err)
+      onError: (err: any) => console.error("Socket Error:", err),
+      onAISpeaking: (isSpeaking: boolean) => setIsAISpeaking(isSpeaking)
     });
 
     // 2. Start the Mic
@@ -46,7 +48,8 @@ export function useSpeechCoach() {
     // Send activityEnd + metrics to trigger AI response
     await geminiService.completeTurn(mockMetrics);
 
-    // Note: We keep recording active for the next turn
+    // The onTurnComplete callback will automatically start the next turn
+    // after the AI finishes speaking (based on audio chunk count)
   }, [geminiService]);
 
   const stopAll = useCallback(async () => {
@@ -55,5 +58,5 @@ export function useSpeechCoach() {
     setIsRecording(false);
   }, [audioService, geminiService]);
 
-  return { startSession, endTurn, stopAll, isRecording, audioLevel };
+  return { startSession, endTurn, stopAll, isRecording, audioLevel, isAISpeaking };
 }
